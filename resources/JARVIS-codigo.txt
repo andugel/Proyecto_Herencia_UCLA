@@ -1,0 +1,1069 @@
+=======================================================================
+
+PLANTEAMIENTO DEL EJERCICIO
+
+1. CARNETIZACIÓN UNIVERSITARIA
+
+En el módulo de emisión de carnets estudiantiles (clase mayor: mCarnetizacion) se procesan las solicitudes de identificación (clase menor base: mSolicitud), de las cuales se conoce la cédula y el nombre del estudiante, sabiendo que todo trámite tiene un costo base de $5. Existen dos tipos de trámites especializados: Carnet Nuevo (mNuevo, que solo paga el costo base) y Reposición por Extravío (mReposicion, que además del costo base cobra $2 por cada extravío previo reportado).
+
+
+
+Se requiere calcular el monto a pagar por cada solicitud, el monto total recaudado por el departamento y la cantidad de carnets emitidos por reposición.
+
+
+
+Datos de entrada:
+
+- 28111222, Ana, Tipo: Nuevo
+
+- 29333444, Luis, Tipo: Reposición, Extravíos previos: 1
+
+- 30555666, Carla, Tipo: Nuevo
+
+- 27888999, Diego, Tipo: Reposición, Extravíos previos: 2
+
+- 31000111, Sofía, Tipo: Reposición, Extravíos previos: 1
+
+
+
+La salida requerida presenta el siguiente formato:
+
+Ana (28111222) debe pagar: $5
+
+Luis (29333444) debe pagar: $7
+
+Carla (30555666) debe pagar: $5
+
+Diego (27888999) debe pagar: $9
+
+Sofía (31000111) debe pagar: $7
+
+
+
+Monto total recaudado: $33
+
+Cantidad de carnets por reposición: 3
+
+
+
+ARCHIVO: src/interfaces/iSolicitud.ts
+
+// Contrato que debe cumplir cualquier vista encargada de capturar una solicitud de carnet.
+
+export interface iSolicitud {
+
+  // Obtiene la cédula escrita por el usuario en el formulario.
+
+  get cedula(): string;
+
+
+
+  // Obtiene el nombre del estudiante escrito en el formulario.
+
+  get nombre(): string;
+
+
+
+  // Obtiene el tipo de trámite elegido ("nuevo" o "reposicion").
+
+  get tipoTramite(): string;
+
+
+
+  // Obtiene la cantidad de extravíos previos reportados.
+
+  get extraviosPrevios(): number;
+
+
+
+  // Hace visible el formulario de solicitud en pantalla.
+
+  mostrar(): void;
+
+
+
+  // Oculta el formulario de solicitud de la pantalla.
+
+  ocultar(): void;
+
+
+
+  // Registra qué hacer cuando el usuario presiona el botón Aceptar.
+
+  onAceptar(callback: () => void): void;
+
+
+
+  // Registra qué hacer cuando el usuario presiona el botón Cancelar.
+
+  onCancelar(callback: () => void): void;
+
+}
+
+
+
+ARCHIVO: src/interfaces/iCarnetizacion.ts
+
+// Contrato que debe cumplir la vista principal del departamento de carnetización.
+
+export interface iCarnetizacion {
+
+  // Registra qué hacer cuando el usuario pulsa el botón para agregar una nueva solicitud.
+
+  onNuevaSolicitud(callback: () => void): void;
+
+
+
+  // Muestra en pantalla el detalle de una solicitud procesada.
+
+  reportarSolicitud({
+
+    nombre,
+
+    cedula,
+
+    monto,
+
+  }: {
+
+    nombre: string;
+
+    cedula: string;
+
+    monto: number;
+
+  }): void;
+
+
+
+  // Actualiza en pantalla los totales generales del departamento.
+
+  reportarTotales({
+
+    totalRecaudado,
+
+    cantidadReposiciones,
+
+  }: {
+
+    totalRecaudado: number;
+
+    cantidadReposiciones: number;
+
+  }): void;
+
+}
+
+
+
+ARCHIVO: src/models/mSolicitud.ts
+
+// Clase base (padre): representa cualquier solicitud de carnet y define lo que todas tienen en común.
+
+export default class mSolicitud {
+
+  // Usamos guion bajo (_) con "protected" para que las clases hijas puedan usar estos datos
+
+  // sin provocar bucles infinitos al pasar por los getters y setters.
+
+  protected _cedula: string = "";
+
+  protected _nombre: string = "";
+
+  // Costo base obligatorio para cualquier trámite ($5).
+
+  protected readonly COSTO_BASE: number = 5;
+
+
+
+  // Recibe los datos iniciales y los asigna usando los setters (que limpian y validan).
+
+  constructor({ cedula, nombre }: { cedula: string; nombre: string }) {
+
+    this.cedula = cedula;
+
+    this.nombre = nombre;
+
+  }
+
+
+
+  // Guarda la cédula quitando espacios en blanco sobrantes.
+
+  set cedula(valor: string) {
+
+    this._cedula = valor.trim();
+
+  }
+
+
+
+  // Devuelve la cédula almacenada.
+
+  get cedula(): string {
+
+    return this._cedula;
+
+  }
+
+
+
+  // Guarda el nombre quitando espacios en blanco sobrantes.
+
+  set nombre(valor: string) {
+
+    this._nombre = valor.trim();
+
+  }
+
+
+
+  // Devuelve el nombre almacenado.
+
+  get nombre(): string {
+
+    return this._nombre;
+
+  }
+
+
+
+  // Calcula el monto a pagar; por defecto cobra el costo base ($5).
+
+  // Las clases hijas pueden redefinir (sobrescribir) este método si necesitan cobrar algo extra.
+
+  montoPagar(): number {
+
+    return this.COSTO_BASE;
+
+  }
+
+
+
+  // Indica si esta solicitud corresponde a una reposición por extravío.
+
+  esReposicion(): boolean {
+
+    return false;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/models/mNuevo.ts
+
+import mSolicitud from "./mSolicitud.js";
+
+
+
+// "mNuevo" hereda de "mSolicitud": es un tipo de solicitud que solo paga el costo base ($5).
+
+export default class mNuevo extends mSolicitud {
+
+  constructor({ cedula, nombre }: { cedula: string; nombre: string }) {
+
+    // "super" llama al constructor de mSolicitud para guardar cédula y nombre.
+
+    super({ cedula, nombre });
+
+  }
+
+
+
+  // Sobrescribe el cálculo para dejar explícito que un carnet nuevo paga solo el costo base.
+
+  override montoPagar(): number {
+
+    return this.COSTO_BASE;
+
+  }
+
+
+
+  // Un carnet nuevo no es una reposición.
+
+  override esReposicion(): boolean {
+
+    return false;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/models/mReposicion.ts
+
+import mSolicitud from "./mSolicitud.js";
+
+
+
+// "mReposicion" hereda de "mSolicitud": cobra el costo base ($5) más $2 por cada extravío previo.
+
+export default class mReposicion extends mSolicitud {
+
+  // Cantidad de extravíos reportados anteriormente por el estudiante.
+
+  private _extraviosPrevios: number = 0;
+
+  // Recargo adicional por cada extravío previo ($2).
+
+  private readonly RECARGO_EXTRAVIO: number = 2;
+
+
+
+  constructor({
+
+    cedula,
+
+    nombre,
+
+    extraviosPrevios,
+
+  }: {
+
+    cedula: string;
+
+    nombre: string;
+
+    extraviosPrevios: number;
+
+  }) {
+
+    // Primero inicializamos los atributos de la clase padre.
+
+    super({ cedula, nombre });
+
+    // Luego asignamos el dato propio de reposición.
+
+    this.extraviosPrevios = extraviosPrevios;
+
+  }
+
+
+
+  // Convierte el valor a número con "+" y evita números negativos.
+
+  set extraviosPrevios(valor: number) {
+
+    const numero = +valor;
+
+    this._extraviosPrevios = numero > 0 ? numero : 0;
+
+  }
+
+
+
+  // Devuelve la cantidad de extravíos previos.
+
+  get extraviosPrevios(): number {
+
+    return this._extraviosPrevios;
+
+  }
+
+
+
+  // Calcula el total: costo base ($5) + ($2 * cantidad de extravíos previos).
+
+  override montoPagar(): number {
+
+    return this.COSTO_BASE + this._extraviosPrevios * this.RECARGO_EXTRAVIO;
+
+  }
+
+
+
+  // Indica que esta solicitud sí es una reposición.
+
+  override esReposicion(): boolean {
+
+    return true;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/models/mCarnetizacion.ts
+
+import mSolicitud from "./mSolicitud.js";
+
+
+
+// Clase mayor: recibe cada solicitud una por una, acumula el dinero y cuenta las reposiciones.
+
+export default class mCarnetizacion {
+
+  // Acumulador del dinero total recaudado por el departamento.
+
+  private acumRecaudado: number = 0;
+
+  // Contador de cuántos carnets por reposición se han emitido.
+
+  private contReposiciones: number = 0;
+
+
+
+  // Procesa una solicitud (puede ser mNuevo o mReposicion, ya que ambos son mSolicitud).
+
+  procesarSolicitud(solicitud: mSolicitud): void {
+
+    // Suma lo que paga esta solicitud al total recaudado.
+
+    this.acumRecaudado += solicitud.montoPagar();
+
+
+
+    // Si es reposición, aumenta en 1 el contador de reposiciones.
+
+    if (solicitud.esReposicion()) {
+
+      this.contReposiciones++;
+
+    }
+
+  }
+
+
+
+  // Devuelve el monto total recaudado hasta el momento.
+
+  totalRecaudado(): number {
+
+    return this.acumRecaudado;
+
+  }
+
+
+
+  // Devuelve la cantidad total de carnets emitidos por reposición.
+
+  cantidadReposiciones(): number {
+
+    return this.contReposiciones;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/views/vSolicitudPlain.ts
+
+import { iSolicitud } from "../interfaces/iSolicitud.js";
+
+
+
+// Vista del formulario de solicitud usando elementos HTML sencillos.
+
+export default class vSolicitudPlain implements iSolicitud {
+
+  private seccion: HTMLElement;
+
+  private inCedula: HTMLInputElement;
+
+  private inNombre: HTMLInputElement;
+
+  private selTipo: HTMLSelectElement;
+
+  private inExtravios: HTMLInputElement;
+
+  private contenedorExtravios: HTMLElement;
+
+  private btAceptar: HTMLButtonElement;
+
+  private btCancelar: HTMLButtonElement;
+
+
+
+  constructor() {
+
+    // Buscamos los elementos del HTML por su ID.
+
+    this.seccion = document.getElementById("solicitud") as HTMLElement;
+
+    this.inCedula = document.getElementById("solicitud_inCedula") as HTMLInputElement;
+
+    this.inNombre = document.getElementById("solicitud_inNombre") as HTMLInputElement;
+
+    this.selTipo = document.getElementById("solicitud_selTipo") as HTMLSelectElement;
+
+    this.inExtravios = document.getElementById("solicitud_inExtravios") as HTMLInputElement;
+
+    this.contenedorExtravios = document.getElementById("solicitud_divExtravios") as HTMLElement;
+
+    this.btAceptar = document.getElementById("solicitud_btAceptar") as HTMLButtonElement;
+
+    this.btCancelar = document.getElementById("solicitud_btCancelar") as HTMLButtonElement;
+
+
+
+    // Mostramos u ocultamos el campo de extravíos previos según el tipo de trámite seleccionado.
+
+    this.selTipo.onchange = () => {
+
+      this.contenedorExtravios.hidden = this.selTipo.value !== "reposicion";
+
+    };
+
+  }
+
+
+
+  get cedula(): string {
+
+    return this.inCedula.value.trim();
+
+  }
+
+
+
+  get nombre(): string {
+
+    return this.inNombre.value.trim();
+
+  }
+
+
+
+  get tipoTramite(): string {
+
+    return this.selTipo.value;
+
+  }
+
+
+
+  get extraviosPrevios(): number {
+
+    return +this.inExtravios.value;
+
+  }
+
+
+
+  // Limpia los campos anteriores y muestra el formulario.
+
+  mostrar(): void {
+
+    this.inCedula.value = "";
+
+    this.inNombre.value = "";
+
+    this.selTipo.value = "nuevo";
+
+    this.inExtravios.value = "0";
+
+    this.contenedorExtravios.hidden = true;
+
+    this.seccion.hidden = false;
+
+  }
+
+
+
+  // Oculta el formulario.
+
+  ocultar(): void {
+
+    this.seccion.hidden = true;
+
+  }
+
+
+
+  onAceptar(callback: () => void): void {
+
+    this.btAceptar.onclick = callback;
+
+  }
+
+
+
+  onCancelar(callback: () => void): void {
+
+    this.btCancelar.onclick = callback;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/views/vCarnetizacionPlain.ts
+
+import { iCarnetizacion } from "../interfaces/iCarnetizacion.js";
+
+
+
+// Vista principal: muestra el botón para agregar solicitudes, el reporte en una zona fija del HTML y los totales.
+
+export default class vCarnetizacionPlain implements iCarnetizacion {
+
+  private btNueva: HTMLButtonElement;
+
+  private salidaSolicitud: HTMLElement;
+
+  private lblTotalRecaudado: HTMLElement;
+
+  private lblCantidadReposiciones: HTMLElement;
+
+
+
+  constructor() {
+
+    // Buscamos los elementos fijos ya declarados en index.html.
+
+    this.btNueva = document.getElementById("body_btNuevaSolicitud") as HTMLButtonElement;
+
+    this.salidaSolicitud = document.getElementById("body_salidaSolicitud") as HTMLElement;
+
+    this.lblTotalRecaudado = document.getElementById("body_lblTotalRecaudado") as HTMLElement;
+
+    this.lblCantidadReposiciones = document.getElementById(
+
+      "body_lblCantidadReposiciones"
+
+    ) as HTMLElement;
+
+  }
+
+
+
+  // Conecta el clic del botón "Nueva Solicitud" con la acción que indique el controlador.
+
+  onNuevaSolicitud(callback: () => void): void {
+
+    this.btNueva.onclick = callback;
+
+  }
+
+
+
+  // Escribe el resultado de la solicitud dentro de la etiqueta fija definida en el HTML.
+
+  reportarSolicitud({
+
+    nombre,
+
+    cedula,
+
+    monto,
+
+  }: {
+
+    nombre: string;
+
+    cedula: string;
+
+    monto: number;
+
+  }): void {
+
+    this.salidaSolicitud.innerHTML += `${nombre} (${cedula}) debe pagar: $${monto}<br>`;
+
+  }
+
+
+
+  // Actualiza las etiquetas fijas del monto total recaudado y la cantidad de reposiciones.
+
+  reportarTotales({
+
+    totalRecaudado,
+
+    cantidadReposiciones,
+
+  }: {
+
+    totalRecaudado: number;
+
+    cantidadReposiciones: number;
+
+  }): void {
+
+    this.lblTotalRecaudado.innerHTML = `$${totalRecaudado}`;
+
+    this.lblCantidadReposiciones.innerHTML = `${cantidadReposiciones}`;
+
+  }
+
+}
+
+
+
+ARCHIVO: src/controllers/cSolicitud.ts
+
+import { iSolicitud } from "../interfaces/iSolicitud.js";
+
+import mSolicitud from "../models/mSolicitud.js";
+
+import mNuevo from "../models/mNuevo.js";
+
+import mReposicion from "../models/mReposicion.js";
+
+
+
+// Controlador menor: gestiona el proceso de llenar o cancelar una solicitud individual.
+
+export default class cSolicitud {
+
+  private vista: iSolicitud;
+
+  // Guarda la función "callback" que se ejecutará cuando termine de crearse (o cancelarse) la solicitud.
+
+  private callback!: (solicitud: mSolicitud | null) => void;
+
+
+
+  constructor(vista: iSolicitud) {
+
+    this.vista = vista;
+
+
+
+    // Usamos funciones flecha "() =>" para no perder la referencia a este controlador al hacer clic.
+
+    this.vista.onAceptar(() => this.btAceptarOnClick());
+
+    this.vista.onCancelar(() => this.btCancelarOnClick());
+
+  }
+
+
+
+  // Abre el formulario de solicitud y guarda qué hacer cuando el usuario termine.
+
+  solicitarSolicitud(callback: (solicitud: mSolicitud | null) => void): void {
+
+    this.callback = callback;
+
+    this.vista.mostrar();
+
+  }
+
+
+
+  // Se ejecuta cuando el usuario confirma los datos de la solicitud.
+
+  private btAceptarOnClick(): void {
+
+    const cedula = this.vista.cedula;
+
+    const nombre = this.vista.nombre;
+
+    const tipo = this.vista.tipoTramite;
+
+    const extraviosPrevios = this.vista.extraviosPrevios;
+
+
+
+    // Creamos la instancia hija correspondiente según el tipo de trámite elegido.
+
+    const solicitud: mSolicitud =
+
+      tipo === "reposicion"
+
+        ? new mReposicion({ cedula, nombre, extraviosPrevios })
+
+        : new mNuevo({ cedula, nombre });
+
+
+
+    this.vista.ocultar();
+
+    // Entregamos la solicitud creada al controlador mayor.
+
+    this.callback(solicitud);
+
+  }
+
+
+
+  // Se ejecuta si el usuario cancela el formulario.
+
+  private btCancelarOnClick(): void {
+
+    this.vista.ocultar();
+
+    // Avisamos que no se creó ninguna solicitud enviando "null".
+
+    this.callback(null);
+
+  }
+
+}
+
+
+
+ARCHIVO: src/controllers/cCarnetizacion.ts
+
+import mCarnetizacion from "../models/mCarnetizacion.js";
+
+import { iCarnetizacion } from "../interfaces/iCarnetizacion.js";
+
+import cSolicitud from "./cSolicitud.js";
+
+
+
+// Controlador mayor: conecta el modelo general de carnetización con la vista principal y el controlador menor.
+
+export default class cCarnetizacion {
+
+  private modelo: mCarnetizacion = new mCarnetizacion();
+
+  private vista: iCarnetizacion;
+
+  private controladorSolicitud: cSolicitud;
+
+
+
+  constructor(vista: iCarnetizacion, controladorSolicitud: cSolicitud) {
+
+    this.vista = vista;
+
+    this.controladorSolicitud = controladorSolicitud;
+
+
+
+    // Cuando el usuario haga clic en "Nueva Solicitud", iniciamos el flujo para capturarla.
+
+    this.vista.onNuevaSolicitud(() => this.procesarUnaSolicitud());
+
+  }
+
+
+
+  // Solicita una nueva solicitud y, si no fue cancelada, la procesa y actualiza la pantalla.
+
+  private procesarUnaSolicitud(): void {
+
+    this.controladorSolicitud.solicitarSolicitud((solicitud) => {
+
+      if (solicitud !== null) {
+
+        // Enviamos la solicitud al modelo mayor para acumular montos y conteos.
+
+        this.modelo.procesarSolicitud(solicitud);
+
+
+
+        // Mostramos el resultado de esta solicitud en pantalla.
+
+        this.vista.reportarSolicitud({
+
+          nombre: solicitud.nombre,
+
+          cedula: solicitud.cedula,
+
+          monto: solicitud.montoPagar(),
+
+        });
+
+
+
+        // Actualizamos los totales generales del departamento.
+
+        this.vista.reportarTotales({
+
+          totalRecaudado: this.modelo.totalRecaudado(),
+
+          cantidadReposiciones: this.modelo.cantidadReposiciones(),
+
+        });
+
+      }
+
+    });
+
+  }
+
+}
+
+
+
+ARCHIVO: index.html
+
+<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Carnetización Universitaria - MVC</title>
+
+</head>
+
+<body>
+
+  <!-- Vista principal del departamento -->
+
+  <section id="body">
+
+    <h2>Carnetización Universitaria</h2>
+
+    <button id="body_btNuevaSolicitud">Nueva Solicitud</button>
+
+
+
+    <h3>Solicitudes procesadas</h3>
+
+    <!-- Contenedor fijo donde se irán escribiendo los resultados de cada solicitud -->
+
+    <div id="body_salidaSolicitud"></div>
+
+
+
+    <hr />
+
+    <!-- Etiquetas fijas para mostrar los totales acumulados -->
+
+    <div><strong>Monto total recaudado:</strong> <span id="body_lblTotalRecaudado">$0</span></div>
+
+    <div>
+
+      <strong>Cantidad de carnets por reposición:</strong>
+
+      <span id="body_lblCantidadReposiciones">0</span>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- Formulario para ingresar una solicitud (inicia oculto hasta hacer clic en "Nueva Solicitud") -->
+
+  <section
+
+    id="solicitud"
+
+    hidden
+
+    style="margin-top: 20px; border: 1px solid #ccc; padding: 15px; width: 340px;"
+
+  >
+
+    <h3>Registrar Solicitud</h3>
+
+
+
+    <div>
+
+      <label>
+
+        Cédula:
+
+        <input type="text" id="solicitud_inCedula" placeholder="Ej: 28111222" />
+
+      </label>
+
+    </div>
+
+    <br />
+
+
+
+    <div>
+
+      <label>
+
+        Nombre:
+
+        <input type="text" id="solicitud_inNombre" placeholder="Ej: Ana" />
+
+      </label>
+
+    </div>
+
+    <br />
+
+
+
+    <div>
+
+      <label>
+
+        Tipo de trámite:
+
+        <select id="solicitud_selTipo">
+
+          <option value="nuevo">Nuevo ($5)</option>
+
+          <option value="reposicion">Reposición ($5 + $2 por extravío previo)</option>
+
+        </select>
+
+      </label>
+
+    </div>
+
+    <br />
+
+
+
+    <div id="solicitud_divExtravios" hidden>
+
+      <label>
+
+        Extravíos previos:
+
+        <input type="number" id="solicitud_inExtravios" min="0" value="0" />
+
+      </label>
+
+      <br /><br />
+
+    </div>
+
+
+
+    <button id="solicitud_btCancelar">Cancelar</button>
+
+    <button id="solicitud_btAceptar">Aceptar</button>
+
+  </section>
+
+
+
+  <!-- Ensamblaje de las piezas del sistema (inyección de dependencias) -->
+
+  <script type="module">
+
+    import cCarnetizacion from "./dist/controllers/cCarnetizacion.js";
+
+    import cSolicitud from "./dist/controllers/cSolicitud.js";
+
+    import vCarnetizacionPlain from "./dist/views/vCarnetizacionPlain.js";
+
+    import vSolicitudPlain from "./dist/views/vSolicitudPlain.js";
+
+
+
+    // Creamos las vistas concretas.
+
+    const vistaCarnetizacion = new vCarnetizacionPlain();
+
+    const vistaSolicitud = new vSolicitudPlain();
+
+
+
+    // Creamos los controladores e inyectamos sus dependencias.
+
+    const controladorSolicitud = new cSolicitud(vistaSolicitud);
+
+    new cCarnetizacion(vistaCarnetizacion, controladorSolicitud);
+
+  </script>
+
+</body>
+
+</html>

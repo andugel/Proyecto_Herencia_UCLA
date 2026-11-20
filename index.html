@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carnetización Universitaria - MVC</title>
+</head>
+<body>
+  <!-- Vista principal del departamento -->
+  <section id="body">
+    <h2>Carnetización Universitaria</h2>
+    <button id="body_btNuevaSolicitud">Nueva Solicitud</button>
+
+    <h3>Solicitudes procesadas</h3>
+    <!-- Contenedor fijo donde se irán escribiendo los resultados de cada solicitud -->
+    <div id="body_salidaSolicitud"></div>
+
+    <hr />
+    <!-- Etiquetas fijas para mostrar los totales acumulados -->
+    <div><strong>Monto total recaudado:</strong> <span id="body_lblTotalRecaudado">$0</span></div>
+    <div>
+      <strong>Cantidad de carnets por reposición:</strong>
+      <span id="body_lblCantidadReposiciones">0</span>
+    </div>
+  </section>
+
+  <!-- Formulario para ingresar una solicitud (inicia oculto hasta hacer clic en "Nueva Solicitud") -->
+  <section
+    id="solicitud"
+    hidden
+    style="margin-top: 20px; border: 1px solid #ccc; padding: 15px; width: 340px;"
+  >
+    <h3>Registrar Solicitud</h3>
+
+    <div>
+      <label>
+        Cédula:
+        <input type="text" id="solicitud_inCedula" placeholder="Ej: 28111222" />
+      </label>
+    </div>
+    <br />
+
+    <div>
+      <label>
+        Nombre:
+        <input type="text" id="solicitud_inNombre" placeholder="Ej: Ana" />
+      </label>
+    </div>
+    <br />
+
+    <div>
+      <label>
+        Tipo de trámite:
+        <select id="solicitud_selTipo">
+          <option value="nuevo">Nuevo ($5)</option>
+          <option value="reposicion">Reposición ($5 + $2 por extravío previo)</option>
+        </select>
+      </label>
+    </div>
+    <br />
+
+    <div id="solicitud_divExtravios" hidden>
+      <label>
+        Extravíos previos:
+        <input type="number" id="solicitud_inExtravios" min="0" value="0" />
+      </label>
+      <br /><br />
+    </div>
+
+    <button id="solicitud_btCancelar">Cancelar</button>
+    <button id="solicitud_btAceptar">Aceptar</button>
+  </section>
+
+  <!-- Ensamblaje de las piezas del sistema (inyección de dependencias) -->
+  <script type="module">
+    import cCarnetizacion from "./dist/controllers/cCarnetizacion.js";
+    import cSolicitud from "./dist/controllers/cSolicitud.js";
+    import vCarnetizacionPlain from "./dist/views/vCarnetizacionPlain.js";
+    import vSolicitudPlain from "./dist/views/vSolicitudPlain.js";
+
+    // Creamos las vistas concretas.
+    const vistaCarnetizacion = new vCarnetizacionPlain();
+    const vistaSolicitud = new vSolicitudPlain();
+
+    // Creamos los controladores e inyectamos sus dependencias.
+    const controladorSolicitud = new cSolicitud(vistaSolicitud);
+    new cCarnetizacion(vistaCarnetizacion, controladorSolicitud);
+  </script>
+</body>
+</html>`
